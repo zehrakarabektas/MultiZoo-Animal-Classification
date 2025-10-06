@@ -1,0 +1,34 @@
+# Python cache / logs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Virtual env
+venv/
+.env/
+.env*/
+
+# Data & outputs (büyük dosyalar)
+data/
+outputs/
+runs/
+checkpoints/
+
+# Model ağırlıkları ve arşivler
+*.pth
+*.pt
+*.onnx
+*.ckpt
+*.h5
+*.zip
+*.tar
+*.tar.gz

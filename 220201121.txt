@@ -1,0 +1,597 @@
+#Zehra Karabektas 220201121
+import torch
+import timm
+
+def load_model(path):
+    model = timm.create_model("beit_base_patch16_224", pretrained=False, num_classes=90)  
+    model.load_state_dict(torch.load(path, map_location=torch.device("cpu")))
+    return model
+from PyQt5.QtWidgets import (
+    QApplication, QLabel, QWidget, QPushButton, QFileDialog,
+    QVBoxLayout, QFrame, QHBoxLayout, QGraphicsDropShadowEffect
+)
+from PyQt5.QtGui import QPixmap, QFont, QPalette, QBrush, QColor, QIcon
+from PyQt5.QtCore import Qt, QSize
+import sys
+import torch
+from torchvision import transforms
+from PIL import Image
+from model import load_model
+
+with open("zoo_class_names.txt", "r") as f:
+    zoo_names = [line.strip() for line in f.readlines()]
+
+model = load_model("son_best_beit_model.pth")
+model.eval()
+
+resize_image = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor()
+])
+
+class UploadImage(QFrame):
+    def __init__(self, icon_path):
+        super().__init__()
+        self.setStyleSheet("background-color: rgba(255, 255, 255, 180); border-radius: 20px;")
+        self.label = QLabel(self)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.icon_path = icon_path
+        self.uploadIcon()
+
+    def uploadIcon(self):
+        pixmap = QPixmap(self.icon_path)
+        self.label.setPixmap(pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.label.setFixedSize(120, 120)
+        self.setFixedSize(260, 260)
+        self.label.move((self.width() - 120) // 2, (self.height() - 120) // 2)
+
+    def resetImage(self):
+        self.uploadIcon()
+
+class ResultBox(QFrame):
+    def __init__(self):
+        super().__init__()
+        self.setStyleSheet("background-color: rgba(255, 255, 255, 200); border-radius: 20px;")
+        self.setFixedSize(360, 200)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(20, 15, 20, 15)
+        layout.setSpacing(12)
+
+        self.icon_guess = QLabel()
+        self.icon_guess.setFixedSize(32, 32)
+        self.icon_guess.setPixmap(QPixmap("search.png").scaled(28, 28, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.icon_guess.setStyleSheet("background: transparent;")
+
+        self.text_guess = QLabel()
+        self.text_guess.setFont(QFont("Arial", 14))
+        self.text_guess.setStyleSheet("color: #333; background: transparent;")
+
+        guess_layout = QHBoxLayout()
+        guess_layout.setSpacing(10)
+        guess_layout.addWidget(self.icon_guess)
+        guess_layout.addWidget(self.text_guess)
+
+        self.icon_score = QLabel()
+        self.icon_score.setFixedSize(32, 32)
+        self.icon_score.setPixmap(QPixmap("target.png").scaled(28, 28, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.icon_score.setStyleSheet("background: transparent;")
+
+        self.text_score = QLabel()
+        self.text_score.setFont(QFont("Arial", 14))
+        self.text_score.setStyleSheet("color: #333; background: transparent;")
+
+        score_layout = QHBoxLayout()
+        score_layout.setSpacing(10)
+        score_layout.addWidget(self.icon_score)
+        score_layout.addWidget(self.text_score)
+
+        self.text_alternatives = QLabel()
+        self.text_alternatives.setFont(QFont("Arial", 12))
+        self.text_alternatives.setStyleSheet("color: #666; background: transparent;")
+        self.text_alternatives.setWordWrap(True)
+
+        layout.addLayout(guess_layout)
+        layout.addLayout(score_layout)
+        layout.addWidget(self.text_alternatives)
+
+        self.setLayout(layout)
+        self.hide()
+
+    def set_result(self, guess, score, alt_preds):
+        self.text_guess.setText(f"<b>Tahmin:</b> {guess}")
+        self.text_score.setText(f"<b>Güven:</b> {score:.2f}%")
+        alt_text = "<b>Alternatifler:</b><br>• " + "<br>• ".join([f"{name} (%{conf:.1f})" for name, conf in alt_preds])
+        self.text_alternatives.setText(alt_text)
+        self.show()
+
+    def reset(self):
+        self.text_guess.setText("")
+        self.text_score.setText("")
+        self.text_alternatives.setText("")
+        self.hide()
+
+class AppMain(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle(" Hayvan Türü Sınıflandırma App Uygulaması")
+        self.setFixedSize(800, 700)
+
+        background = QPalette()
+        bg = QPixmap("background.png").scaled(self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+        background.setBrush(QPalette.Window, QBrush(bg))
+        self.setPalette(background)
+
+        self.title = QLabel("Hayvan Türü\nSınıflandırması", self)
+        self.title.setFont(QFont("Arial", 28, QFont.Bold))
+        self.title.setStyleSheet("color: #2b2b2b;")
+        self.title.setAlignment(Qt.AlignCenter)
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(8)
+        shadow.setXOffset(2)
+        shadow.setYOffset(2)
+        shadow.setColor(QColor(0, 0, 0, 160))
+        self.title.setGraphicsEffect(shadow)
+
+        self.upload = UploadImage("upload_icon.png")
+        self.result = ResultBox()
+
+        self.button = QPushButton(" Görüntü Yükle", self)
+        self.button.setIcon(QIcon("add-photo.png"))
+        self.button.setIconSize(QSize(28, 28))
+        self.button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                font-size: 20px;
+                padding: 10px;
+                border-radius: 8px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        self.button.clicked.connect(self.load_image)
+
+        self.reset_button = QPushButton(" Sıfırla", self)
+        self.reset_button.setIcon(QIcon("switch-camera.png"))
+        self.reset_button.setIconSize(QSize(28, 28))
+        self.reset_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                font-size: 20px;
+                padding: 10px;
+                border-radius: 8px;
+            }
+            QPushButton:hover {
+                background-color: #d32f2f;
+            }
+        """)
+        self.reset_button.clicked.connect(self.reset_view)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.button)
+        button_layout.addWidget(self.reset_button)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 20, 10, 20)
+        layout.addWidget(self.title, alignment=Qt.AlignHCenter)
+        layout.addSpacing(40)
+        layout.addWidget(self.upload, alignment=Qt.AlignHCenter | Qt.AlignTop)
+        layout.addSpacing(10)
+        layout.addWidget(self.result, alignment=Qt.AlignHCenter)
+        layout.addStretch()
+        layout.addLayout(button_layout)
+        layout.addSpacing(10)
+
+        self.setLayout(layout)
+
+    def guess_image(self, path):
+        img = Image.open(path).convert("RGB")
+        img_tensor = resize_image(img).unsqueeze(0)
+        with torch.no_grad():
+            outputs = model(img_tensor)
+            probs = torch.nn.functional.softmax(outputs, dim=1)
+            top3_scores, top3_indices = torch.topk(probs, 3)
+            top3 = [(zoo_names[i], top3_scores[0][j].item() * 100) for j, i in enumerate(top3_indices[0])]
+            print(" Top-3 Tahminler:")
+            for cls, scr in top3:
+                print(f"• {cls}: %{scr:.2f}")
+        return top3
+
+    def load_image(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Bir görsel seçin", "", "Image Files (*.png *.jpg *.jpeg)")
+        if path:
+            pixmap = QPixmap(path)
+            if pixmap.isNull():
+                print(" Görsel yüklenemedi!")
+                return
+
+            scaled_pixmap = pixmap.scaled(320, 210, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.upload.label.setPixmap(scaled_pixmap)
+            self.upload.label.setFixedSize(scaled_pixmap.size())
+            self.upload.setFixedSize(scaled_pixmap.width() + 20, scaled_pixmap.height() + 20)
+            self.upload.label.move(10, 10)
+
+            top3 = self.guess_image(path)
+            main_guess, main_conf = top3[0]
+            alternatives = top3[1:]
+            self.result.set_result(main_guess, main_conf, alternatives)
+
+    def reset_view(self):
+        self.upload.resetImage()
+        self.upload.label.setFixedSize(120, 120)
+        self.upload.setFixedSize(260, 260)
+        self.upload.label.move((260 - 120) // 2, (260 - 120) // 2)
+        self.result.reset()
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = AppMain()
+    window.show()
+    sys.exit(app.exec_())
+from google.colab import drive
+drive.mount('/content/drive')
+
+# Datasetini %80 %20 ayırdım
+import os
+import shutil
+from sklearn.model_selection import train_test_split
+
+original_train_dataset = "/content/drive/MyDrive/Yazlab2Proje3/drivedataset/train"
+train = "/content/drive/MyDrive/Yazlab2Proje3/dataset/train"
+val = "/content/drive/MyDrive/Yazlab2Proje3/dataset/val"
+
+os.makedirs(train, exist_ok=True)
+os.makedirs(val, exist_ok=True)
+
+zoo_classes = os.listdir(original_train_dataset)
+
+for zoo_class_name in zoo_classes:
+    zoo_class_path = os.path.join(original_train_dataset, zoo_class_name)
+    images = os.listdir(zoo_class_path)
+
+    train_images, val_images = train_test_split(images, test_size=0.2, random_state=42)
+
+    for img in train_images:
+        src = os.path.join(zoo_class_path, img)
+        dst_dir = os.path.join(train, zoo_class_name)
+        os.makedirs(dst_dir, exist_ok=True)
+        shutil.copy2(src, dst_dir)
+
+    for img in val_images:
+        src = os.path.join(zoo_class_path, img)
+        dst_dir = os.path.join(val, zoo_class_name)
+        os.makedirs(dst_dir, exist_ok=True)
+        shutil.copy2(src, dst_dir)
+
+print(" Veri seti %80 train / %20 validation olarak ayrıldı.")
+
+import os
+import cv2
+import numpy as np
+from PIL import Image
+from tqdm import tqdm
+
+def resize_with_detail_preservation(image_path):
+    pil_image = Image.open(image_path).convert("RGB")
+    img_rgb = np.array(pil_image)
+
+    img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+
+    gray_image = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+    laplacian = cv2.Laplacian(gray_image, cv2.CV_64F)
+    laplacian = cv2.convertScaleAbs(laplacian)
+    laplacian_color = cv2.merge([laplacian, laplacian, laplacian])
+
+    image_resize = cv2.resize(img_bgr, (224, 224), interpolation=cv2.INTER_LANCZOS4)
+    laplacian_resize = cv2.resize(laplacian_color, (224, 224), interpolation=cv2.INTER_LANCZOS4)
+
+    laplacian_image = cv2.addWeighted(image_resize, 1.0, laplacian_resize, 0.1, 0)
+
+    laplacian_image_rgb = cv2.cvtColor(laplacian_image, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(laplacian_image_rgb)
+
+folder_train_val = [
+    {
+        "input_dir": "/content/drive/MyDrive/Yazlab2Proje3/dataset/train",
+        "output_dir": "/content/drive/MyDrive/Yazlab2Proje3/resize/train_resized_detail"
+    },
+    {
+        "input_dir": "/content/drive/MyDrive/Yazlab2Proje3/dataset/val",
+        "output_dir": "/content/drive/MyDrive/Yazlab2Proje3/resize/val_resized_detail"
+    }
+]
+
+for folder in folder_train_val:
+    input_dir = folder["input_dir"]
+    output_dir = folder["output_dir"]
+    os.makedirs(output_dir, exist_ok=True)
+
+    for class_name in os.listdir(input_dir):
+        input_class_dir = os.path.join(input_dir, class_name)
+        output_class_dir = os.path.join(output_dir, class_name)
+        os.makedirs(output_class_dir, exist_ok=True)
+
+        for image_name in tqdm(os.listdir(input_class_dir), desc=f"{class_name} ({os.path.basename(input_dir)})"):
+            image_path = os.path.join(input_class_dir, image_name)
+            output_path = os.path.join(output_class_dir, image_name)
+
+            try:
+                processed_img = resize_with_detail_preservation(image_path)
+                processed_img.save(output_path)
+            except Exception as e:
+                print(f" {image_name} işlenemedi: {e}")
+
+#beitalbumentation denemesi
+import timm
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torchvision import transforms, datasets
+from sklearn.metrics import classification_report, precision_score, recall_score, f1_score, accuracy_score
+from scipy.ndimage import gaussian_filter1d
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+from tqdm import tqdm
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+import cv2
+from torch.utils.data import Dataset
+
+
+class AlbumentationsDataset(Dataset):
+    def __init__(self, image_folder_dataset, transform=None):
+        self.image_folder_dataset = image_folder_dataset
+        self.transform = transform
+
+    def __getitem__(self, index):
+        path, label = self.image_folder_dataset.samples[index]
+        image = cv2.imread(path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if self.transform:
+            augmented = self.transform(image=image)
+            image = augmented['image']
+        return image, label
+
+    def __len__(self):
+        return len(self.image_folder_dataset)
+
+
+def draw_metric(train_vals, val_vals, metric_name, filename, train_color, val_color, sigma=1.5):
+    train = gaussian_filter1d(train_vals, sigma=sigma)
+    val = gaussian_filter1d(val_vals, sigma=sigma)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(len(train_vals)), train, label=f"Train {metric_name}", color=train_color, linewidth=1.5)
+    plt.plot(range(len(val_vals)), val, label=f"Validation {metric_name}", color=val_color, linewidth=1.5)
+    plt.title(f"{metric_name} Over Epochs", fontsize=16)
+    plt.xlabel("Epochs", fontsize=14)
+    plt.ylabel(metric_name, fontsize=14)
+    plt.legend(fontsize=12)
+    plt.grid(True, linestyle='--', alpha=0.4)
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.show()
+
+
+def train_model(model_name="beit_base_patch16_224", save_path="best_beit.pth", fig_name="beit_plot.png", epochs=50, early_stop_patience=2):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Cihaz: {device}")
+
+    data_dir = "/content/drive/MyDrive/Yazlab2Proje3/resize"
+    class_names = os.listdir(os.path.join(data_dir, "train_resized_detail"))
+    num_classes = len(class_names)
+
+    # Albumentations kullanarak veri augmentasyonu yapıldı
+    albumentations_transform = A.Compose([
+        A.RandomResizedCrop(size=(224, 224), scale=(0.9, 1.0), p=1.0),
+        A.HorizontalFlip(p=0.5),
+        A.Rotate(limit=15, p=0.5),
+        A.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1, p=0.8),
+        A.OneOf([
+            A.MotionBlur(p=0.2),
+            A.MedianBlur(blur_limit=3, p=0.1),
+            A.GaussianBlur(p=0.1),
+        ], p=0.3),
+        A.RandomShadow(p=0.3),
+        A.RandomBrightnessContrast(p=0.3),
+        A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+        ToTensorV2()
+    ])
+
+    # Val dogrulama seti için sadece normalizasyon
+    val_transforms = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
+    ])
+
+    train_base_dataset = datasets.ImageFolder(os.path.join(data_dir, "train_resized_detail"))
+    train_dataset = AlbumentationsDataset(train_base_dataset, transform=albumentations_transform)
+    val_dataset = datasets.ImageFolder(os.path.join(data_dir, "val_resized_detail"), transform=val_transforms)
+
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+
+    model = timm.create_model(model_name, pretrained=True, num_classes=num_classes)
+    model.to(device)
+
+    loss_fonk = nn.CrossEntropyLoss()
+    optimizer = optim.AdamW(model.parameters(), lr=1e-5)
+
+    train_accuracies, val_accuracies = [], []
+    train_losses, val_losses = [], []
+    train_precisions, val_precisions = [], []
+    train_recalls, val_recalls = [], []
+    train_f1_scores, val_f1_scores = [], []
+
+    best_val_loss = float('inf')
+    stop_counter = 0
+
+    for epoch in range(epochs):
+        print(f"\n Epoch {epoch+1}/{epochs}")
+        model.train()
+        running_loss = 0.0
+        correct_train, total_train = 0, 0
+        all_train_preds, all_train_labels = [], []
+
+        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}"):
+            images, labels = images.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = loss_fonk(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+            preds = torch.argmax(outputs, dim=1)
+            correct_train += (preds == labels).sum().item()
+            total_train += labels.size(0)
+            all_train_preds.extend(preds.cpu().numpy())
+            all_train_labels.extend(labels.cpu().numpy())
+
+        train_loss = running_loss / len(train_loader)
+        train_accuracy = correct_train / total_train
+        train_precision = precision_score(all_train_labels, all_train_preds, average="macro", zero_division=0)
+        train_recall = recall_score(all_train_labels, all_train_preds, average="macro", zero_division=0)
+        train_f1 = f1_score(all_train_labels, all_train_preds, average="macro", zero_division=0)
+
+        train_losses.append(train_loss)
+        train_accuracies.append(train_accuracy)
+        train_precisions.append(train_precision)
+        train_recalls.append(train_recall)
+        train_f1_scores.append(train_f1)
+
+        model.eval()
+        val_running_loss = 0.0
+        all_preds, all_labels = [], []
+
+        with torch.no_grad():
+            for images, labels in val_loader:
+                images, labels = images.to(device), labels.to(device)
+                outputs = model(images)
+                loss = loss_fonk(outputs, labels)
+                val_running_loss += loss.item()
+                preds = torch.argmax(outputs, dim=1)
+                all_preds.extend(preds.cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+
+        val_loss = val_running_loss / len(val_loader)
+        val_accuracy = accuracy_score(all_labels, all_preds)
+        val_precision = precision_score(all_labels, all_preds, average="macro", zero_division=0)
+        val_recall = recall_score(all_labels, all_preds, average="macro", zero_division=0)
+        val_f1 = f1_score(all_labels, all_preds, average="macro", zero_division=0)
+
+        val_losses.append(val_loss)
+        val_accuracies.append(val_accuracy)
+        val_precisions.append(val_precision)
+        val_recalls.append(val_recall)
+        val_f1_scores.append(val_f1)
+
+        print(f" Epoch {epoch+1}: Train Loss={train_loss:.4f}, Val Loss={val_loss:.4f}, "
+              f"Train Acc={train_accuracy*100:.2f}%, Val Acc={val_accuracy*100:.2f}%, "
+              f"Precision={val_precision*100:.2f}%, Recall={val_recall*100:.2f}%, F1={val_f1*100:.2f}%")
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            stop_counter = 0
+            torch.save(model.state_dict(), save_path)
+            print(" En iyi model kaydedildi.")
+        else:
+            stop_counter += 1
+            print(f" Erken durdurma sayacı: {stop_counter}/{early_stop_patience}")
+            if stop_counter >= early_stop_patience:
+                print(" Erken durdurma tetiklendi.")
+                break
+
+    draw_metric(train_accuracies, val_accuracies, "Accuracy", "accuracy_plot.png", "orange", "green")
+    draw_metric(train_losses, val_losses, "Loss", "loss_plot.png", "brown", "green")
+    draw_metric(train_precisions, val_precisions, "Precision", "precision_plot.png", "blue", "cyan")
+    draw_metric(train_recalls, val_recalls, "Recall", "recall_plot.png", "purple", "magenta")
+    draw_metric(train_f1_scores, val_f1_scores, "F1-Score", "f1_plot.png", "red", "darkred")
+
+    report_string = classification_report(all_labels, all_preds, target_names=class_names)
+    fig, ax = plt.subplots(figsize=(12, len(class_names) * 0.5 + 2))
+    fig.patch.set_visible(False)
+    ax.axis('off')
+    ax.text(0, 1, report_string, fontsize=12, fontfamily='monospace', verticalalignment='top')
+    report_filename = "val_report_" + fig_name.replace(".png", "") + ".png"
+    plt.tight_layout()
+    plt.savefig(report_filename, bbox_inches='tight')
+    plt.show()
+
+    print("\n Son Doğrulama Raporu:")
+    print(report_string)
+
+train_model()
+
+import torch
+import timm
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+import numpy as np
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
+
+MODEL_PATH = "/content/drive/MyDrive/beitsondenemealb/best_beit.pth"
+TEST_DIR = "/content/drive/MyDrive/testval/val"
+CLASS_COUNT = 90
+BATCH_SIZE = 32
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+model = timm.create_model("beit_base_patch16_224", pretrained=False, num_classes=CLASS_COUNT)
+model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+model.to(device)
+model.eval()
+
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+])
+
+test_dataset = datasets.ImageFolder(TEST_DIR, transform=transform)
+test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+all_preds = []
+all_labels = []
+
+with torch.no_grad():
+    for images, labels in test_loader:
+        images = images.to(device)
+        labels = labels.to(device)
+
+        outputs = model(images)
+        preds = torch.argmax(outputs, dim=1)
+
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
+
+accuracy = accuracy_score(all_labels, all_preds)
+precision = precision_score(all_labels, all_preds, average='macro', zero_division=0)
+recall = recall_score(all_labels, all_preds, average='macro', zero_division=0)
+f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
+
+class_names = test_dataset.classes
+report = classification_report(all_labels, all_preds, target_names=class_names, digits=4)
+
+print("Classification Report:\n")
+print(report)
+print(f"\nMetrics:\n"
+      f"Accuracy : {accuracy:.4f}\n"
+      f"Precision: {precision:.4f}\n"
+      f"Recall   : {recall:.4f}\n"
+      f"F1-Score : {f1:.4f}")
+
+report_path = "/content/drive/MyDrive/beitsondenemealb/classification_report2.txt"
+with open(report_path, "w") as f:
+    f.write("Classification Report:\n\n")
+    f.write(report)
+    f.write("\n Metrics:\n")
+    f.write(f"Accuracy : {accuracy:.4f}\n")
+    f.write(f"Precision: {precision:.4f}\n")
+    f.write(f"Recall   : {recall:.4f}\n")
+    f.write(f"F1-Score : {f1:.4f}\n")
