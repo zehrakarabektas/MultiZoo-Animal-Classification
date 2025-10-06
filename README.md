@@ -33,6 +33,17 @@ Aşağıdaki bağlantıdan son Beit model denemesi indirilebilir:
 🔗 **[Rapor ve Model Ağırlıkları (Google Drive)]([https://drive.google.com/your_link_here](https://drive.google.com/file/d/1PVZQZUSqpNZqT8yWeM3wi6cgobLkStYe/view?usp=sharing))**  
 
 ---
+## 📂 Veri Setleri
+
+### 🔹 Eğitim Verisi
+MultiZoo veri setinin orijinal sürümü aşağıdaki bağlantıdan indirilebilir:  
+📦 [MultiZoo Dataset (Eğitim Verisi)]([https://drive.google.com/your_training_dataset_link_here](https://drive.google.com/file/d/1j0mQccBThu0MzhMbU2UCK7AHKL71wBqZ/view?usp=drive_link))
+
+### 🔹 Test Verisi
+Modelin değerlendirmesinde kullanılan test seti bağlantısı:  
+🧩 [Test Dataset (Değerlendirme Verisi)]([[https://drive.google.com/your_test_dataset_link_here](https://drive.google.com/drive/folders/1UdazggjMt6o2h36RNrN3sY6BthG140fG?usp=sharing](https://drive.google.com/file/d/1fa0UrAYEazFtEV-Dki2e-1VY8G53kmJd/view?usp=drive_link)))
+
+---
 
 ## 📄 Rapor
 📘 Ayrıntılı proje raporu:  
