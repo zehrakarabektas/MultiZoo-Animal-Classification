@@ -37,10 +37,10 @@ Aşağıdaki bağlantıdan son Beit model denemesi indirilebilir:
 
 Projede kullanılan veri seti **MultiZoo** veri setidir.  
 Bu veri seti, hayvan türlerini görüntüler üzerinden sınıflandırmak amacıyla oluşturulmuştur.  
-Veri seti hem **eğitim(train)** hem de **test** verilerini birlikte içermektedir.
+Veri seti hem **eğitim (train)** hem de **test** verilerini birlikte içermektedir.
 
-🔗 **[MultiZoo Veri Seti (Eğitim + Test)]([https://drive.google.com/your_full_dataset_link_here](https://drive.google.com/drive/folders/1uXMJa2CX5eg_kGWghbqg8TWkpeQi-0VI?usp
- =sharing ))**
+🔗 [MultiZoo Veri Seti (Eğitim + Test)](https://drive.google.com/drive/folders/1uXMJa2CX5eg_kGWghbqg8TWkpeQi-0VI?usp=sharing)
+
 
 ---
 
