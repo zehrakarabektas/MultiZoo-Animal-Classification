@@ -35,13 +35,12 @@ Aşağıdaki bağlantıdan son Beit model denemesi indirilebilir:
 ---
 ## 📂 Veri Setleri
 
-### 🔹 Eğitim Verisi
-MultiZoo veri setinin orijinal sürümü aşağıdaki bağlantıdan indirilebilir:  
-📦 [MultiZoo Dataset (Eğitim Verisi)]([https://drive.google.com/your_training_dataset_link_here](https://drive.google.com/file/d/1j0mQccBThu0MzhMbU2UCK7AHKL71wBqZ/view?usp=drive_link))
+Projede kullanılan veri seti **MultiZoo** veri setidir.  
+Bu veri seti, hayvan türlerini görüntüler üzerinden sınıflandırmak amacıyla oluşturulmuştur.  
+Veri seti hem **eğitim(train)** hem de **test** verilerini birlikte içermektedir.
 
-### 🔹 Test Verisi
-Modelin değerlendirmesinde kullanılan test seti bağlantısı:  
-🧩 [Test Dataset (Değerlendirme Verisi)]([[https://drive.google.com/your_test_dataset_link_here](https://drive.google.com/file/d/1j0mQccBThu0MzhMbU2UCK7AHKL71wBqZ/view?usp=drive_link)](https://drive.google.com/file/d/1fa0UrAYEazFtEV-Dki2e-1VY8G53kmJd/view?usp=drive_link))
+🔗 **[MultiZoo Veri Seti (Eğitim + Test)]([https://drive.google.com/your_full_dataset_link_here](https://drive.google.com/drive/folders/1uXMJa2CX5eg_kGWghbqg8TWkpeQi-0VI?usp
+ =sharing ))**
 
 ---
 
