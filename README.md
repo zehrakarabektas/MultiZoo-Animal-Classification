@@ -30,7 +30,8 @@ Model eğitiminde Transformer tabanlı modern mimariler (ViT, DeiT, BEiT, Swin T
 Model ağırlıkları (`.pth`) boyut kısıtından dolayı GitHub'da yer almamaktadır.  
 Aşağıdaki bağlantıdan son Beit model denemesi indirilebilir:
 
-🔗 **[Rapor ve Model Ağırlıkları (Google Drive)]([https://drive.google.com/your_link_here](https://drive.google.com/file/d/1PVZQZUSqpNZqT8yWeM3wi6cgobLkStYe/view?usp=sharing))**  
+🔗 **[Rapor ve Model Ağırlıkları (Google Drive)](https://drive.google.com/file/d/1PVZQZUSqpNZqT8yWeM3wi6cgobLkStYe/view?usp=sharing)**
+ 
 
 ---
 ## 📂 Veri Setleri
